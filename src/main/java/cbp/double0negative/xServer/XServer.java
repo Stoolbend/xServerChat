@@ -1,11 +1,16 @@
 package cbp.double0negative.xServer;
 
 import java.util.HashMap;
+import java.util.Map;
 
+import net.milkbowl.vault.permission.Permission;
+
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.*;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 
 import cbp.double0negative.xServer.Server.Server;
@@ -33,7 +38,12 @@ public class XServer extends JavaPlugin
 	public static ChatColor aColor = ChatColor.AQUA;
 	public static ChatColor pColor = ChatColor.GOLD;
 	public static ChatColor eColor = ChatColor.DARK_RED;
-	public static String pre = "[XServer] ";
+	public static ChatColor WHITE = ChatColor.WHITE;
+    public static ChatColor RED = ChatColor.DARK_RED;
+    public static ChatColor AQUA = ChatColor.AQUA;
+    public static ChatColor BLUE = ChatColor.BLUE;
+    public static ChatColor PURPLE = ChatColor.DARK_PURPLE;
+	public static String pre = "[XServerAC] ";
 	public static String xpre = pColor + pre;
 	public static String ip;
 	public static int port;
@@ -50,15 +60,24 @@ public class XServer extends JavaPlugin
 	private ChatListener cl = new ChatListener();
 	public static HashMap<String, String> formats = new HashMap<String, String>();
 	public static HashMap<String, String> override = new HashMap<String, String>();
+	public static Map<Player, Boolean> pluginEnabled = new HashMap<Player, Boolean>();
+    public static Map<Player, String> userAttached = new HashMap<Player, String>();
 	private static boolean formatoveride = false;
+	public static int overRide = 0;
+	String fnlOut = "";
+	String fnlMsg0 = "";
+	Player pmt;
+	String name = null;
+	LogManager log = LogManager.getInstance();
+	public static Permission permission = null;
 
 	public void onEnable()
 	{
 
 		netActive = true;
-		LogManager log = LogManager.getInstance();
 		log.setup(this);
-		log.info("XServer Version " + version + " Initializing");
+		log.info("xServerChat + OpTalk Version " + version + " Initializing");
+		log.info("Some code based on xserver.ac - http://dev.bukkit.org/servermods/optalk");
 
 		getConfig().options().copyDefaults(true);
 		this.saveDefaultConfig();
@@ -83,6 +102,8 @@ public class XServer extends JavaPlugin
 		override.put("CONNECT", getConfig().getString("override.Connect"));
 		override.put("DISCONNECT", getConfig().getString("override.Disconnect"));
 
+		setupPermissions();
+		
 		if (isHost)
 		{
 			LogManager.getInstance().info("THIS SERVER IS HOST");
@@ -122,7 +143,7 @@ public class XServer extends JavaPlugin
 		{
 			client = new Client(this, ip, port);
 			client.openConnection();
-			cl.setClient(client);
+			cl.setClient(client, this);
 		}
 	}
 
@@ -189,15 +210,18 @@ public class XServer extends JavaPlugin
 		{
 			player = (Player) sender;
 		}
-
 		if (cmd.equalsIgnoreCase("xserver") || cmd.equalsIgnoreCase("x"))
 		{
+			if (args[0] == null)
+			{
+				player.sendMessage(xpre + "Version: " + version);
+			}
 			if (args[0].equalsIgnoreCase("list"))
 			{
 				stat_req = player;
 				getStats();
 			}
-			if (player.hasPermission("xserver.admin"))
+			if (XServer.checkPerm(player,  "xserver.admin"))
 			{
 				if (args[0].equalsIgnoreCase("dc")
 						|| args[0].equalsIgnoreCase("disconnect"))
@@ -262,8 +286,84 @@ public class XServer extends JavaPlugin
 					}
 				}
 			}
-
-			return true;
+			else
+			{
+				player.sendMessage(ChatColor.RED+"You don't have permission to do that!");
+				return true;
+			}
+		}
+		if (cmd.equalsIgnoreCase("ac"))
+		{
+			for (String str : args)
+			{
+				this.fnlOut = (this.fnlOut + " " + str);
+			}
+			if (this.fnlMsg0 != null)
+			{
+				this.fnlOut = this.fnlOut.replace(this.fnlMsg0, "");
+			}
+			if (this.name != null)
+			{
+				this.fnlOut = this.fnlOut.replace(this.name, "");
+			}
+			if (this.fnlOut.contains("  "))
+			{
+				this.fnlOut = this.fnlOut.replace("  ", "");
+			}
+			if (player == null)
+			{
+				client.sendMessage(this.fnlOut, "[Console]");
+				Player[] players = Bukkit.getOnlinePlayers();
+				for (Player op : players)
+				{
+					if ((XServer.checkPerm(op, "xserver.ac.chat")) || (XServer.checkPerm(op, "xserver.ac.see")) || (op.isOp()))
+					{
+						op.sendMessage(ChatColor.AQUA+"[Local]"+"[Console]"+": "+this.fnlOut);
+					}
+				}
+				this.fnlOut = "";
+				return true;
+			}
+			if (args.length == 0)
+			{
+				if ((XServer.checkPerm(player,  "xserver.ac.chat")) || (player.isOp()))
+					togglePluginState(player);
+			}
+			else 
+			{
+				if (XServer.pluginEnabled.containsKey(player))
+				{
+					if (((Boolean)XServer.pluginEnabled.get(player)).booleanValue())
+					{
+						XServer.overRide = 1;
+						player.chat(this.fnlOut.replaceFirst(" ", ""));
+						this.fnlOut = "";
+						return true;
+					}
+				}
+				if (XServer.overRide == 0)
+				{
+					if ((XServer.checkPerm(player,  "xserver.ac.chat")) || (player.isOp()))
+					{
+						client.sendMessage(this.fnlOut, player.getDisplayName());
+						Player[] players = Bukkit.getOnlinePlayers();
+						for (Player op : players)
+						{
+							if ((XServer.checkPerm(op, "xserver.ac.chat")) || (XServer.checkPerm(op, "xserver.ac.see")) || (op.isOp()))
+							{
+								op.sendMessage(ChatColor.AQUA+"[Local]"+player.getDisplayName()+": "+this.fnlOut);
+							}
+						}
+					}
+					else
+					{
+						player.sendMessage(ChatColor.RED+"You don't have permission to do that!");
+						return true;
+					}
+				}
+				this.fnlOut = "";
+				return true;
+			}
 		}
 		return false;
 	}
@@ -322,5 +422,56 @@ public class XServer extends JavaPlugin
 
 		return str;
 	}
+	
 
+ 
+   public void togglePluginState(Player player)
+   {
+    if (XServer.pluginEnabled.containsKey(player))
+     {
+      if (((Boolean)XServer.pluginEnabled.get(player)).booleanValue())
+       {
+         XServer.pluginEnabled.remove(player);
+         player.sendMessage(XServer.RED + "Admin Chat Disabled");
+       }
+       else {
+        XServer.pluginEnabled.put(player, Boolean.valueOf(true));
+         player.sendMessage(XServer.AQUA + "Admin Chat Enabled");
+       }
+     }
+     else {
+       XServer.pluginEnabled.put(player, Boolean.valueOf(true));
+       player.sendMessage(XServer.AQUA + "Admin Chat Enabled");
+     }
+   }
+ 
+   public static String customTranslateAlternateColorCodes(char altColorChar, String textToTranslate)
+   {
+    char[] charArray = textToTranslate.toCharArray();
+     for (int i = 0; i < charArray.length - 1; i++)
+     {
+       if ((charArray[i] == altColorChar) && ("0123456789AaBbCcDdEeFfKkNnRrLlMmOo".indexOf(charArray[(i + 1)]) > -1))
+       {
+        charArray[i] = '§';
+         charArray[(i + 1)] = Character.toLowerCase(charArray[(i + 1)]);
+       }
+     }
+     return new String(charArray);
+   }
+
+   private boolean setupPermissions()
+   {
+       RegisteredServiceProvider<Permission> permissionProvider = getServer().getServicesManager().getRegistration(net.milkbowl.vault.permission.Permission.class);
+       if (permissionProvider != null) {
+           permission = permissionProvider.getProvider();
+   			log.info("Hooked into Vault for Permissions!");
+       }
+       return (permission != null);
+   }
+   
+   public static boolean checkPerm(Player plr, String node)
+   {
+	   return permission.has(plr, node);
+   }
+   
 }

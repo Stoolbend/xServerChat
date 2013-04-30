@@ -1,0 +1,26 @@
+name: xServerAC
+main: cbp.double0negative.xServer.XServer
+authors: [Stoolbend, double0negative, MCForger]
+version: 0.0.1
+commands:
+  xserver:
+    description: Stats and controls for xserver
+    usage: /XServer command or /x command
+    aliases: [x]
+  ac:
+    description: Admin Chat for XServer
+    usage: /ac <message> or /ac to toggle enabled
+    aliases: [a]
+permissions:
+  xserver.message.receive:
+    description: Allows the player to receive xServerChat messages
+    default: true
+  xserver.admin:
+    description: Allows the player to configure xServerChat
+    default: op
+  xserver.ac.chat:
+    description: Ability to chat in adminchat
+    default: op
+  xserver.ac.see:
+    description: Ability to see adminchat
+    default: op

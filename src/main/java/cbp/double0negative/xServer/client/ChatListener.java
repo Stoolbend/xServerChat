@@ -1,99 +1,71 @@
 package cbp.double0negative.xServer.client;
 
-import java.util.HashMap;
-
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.event.player.PlayerCommandPreprocessEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
-
 import cbp.double0negative.xServer.XServer;
-import cbp.double0negative.xServer.packets.Packet;
-import cbp.double0negative.xServer.packets.PacketTypes;
+import cbp.double0negative.xServer.util.LogManager;
 
 public class ChatListener implements Listener
 {
 
 	Client c;
-
-	public void setClient(Client c)
+	LogManager log;
+	XServer plugin;
+	
+	public void setClient(Client c, XServer instance)
 	{
+		plugin = instance;
 		this.c = c;
 	}
 
-	@EventHandler(priority = EventPriority.MONITOR)
-	public void handleChat(AsyncPlayerChatEvent event)
-	{
-		if (event.isCancelled())
-			return;
-		String msg = event.getMessage().replaceAll("(&([a-fk-or0-9]))",
-				"\u00A7$2");
-		event.setMessage(msg);
-		c.sendMessage(event.getMessage(), event.getPlayer().getDisplayName());
-
-	}
-
-	@EventHandler(priority = EventPriority.MONITOR)
-	public void handleCommand(PlayerCommandPreprocessEvent event)
-	{
-
-		if (event.getMessage().equalsIgnoreCase("/reload"))
-		{
-			XServer.restartMode = PacketTypes.DC_TYPE_RELOAD;
-		}
-		if (event.getMessage().startsWith("/stop"))
-		{
-			XServer.restartMode = PacketTypes.DC_TYPE_STOP;
-		}
-
-	}
-
-	@EventHandler(priority = EventPriority.MONITOR)
-	public void handlePlayerJoin(PlayerJoinEvent event)
-	{
-
-		HashMap<String, String> f = new HashMap<String, String>();
-
-		f.put("USERNAME", event.getPlayer().getDisplayName());
-		f.put("SERVERNAME", XServer.serverName);
-		c.send(new Packet(PacketTypes.PACKET_PLAYER_JOIN, f));
-
-	}
-
-	@EventHandler(priority = EventPriority.MONITOR)
-	public void handlePlayerLeave(PlayerQuitEvent event)
-	{
-
-		HashMap<String, String> f = new HashMap<String, String>();
-
-		f.put("USERNAME", event.getPlayer().getDisplayName());
-		f.put("SERVERNAME", XServer.serverName);
-		c.send(new Packet(PacketTypes.PACKET_PLAYER_LEAVE, f));
-	}
-
-	@EventHandler(priority = EventPriority.MONITOR)
-	public void handlePlayerDeath(PlayerDeathEvent event)
-	{
-
-		HashMap<String, String> f = new HashMap<String, String>();
-
-		f.put("USERNAME", event.getEntity().getDisplayName());
-		f.put("SERVERNAME", XServer.serverName);
-		c.send(new Packet(PacketTypes.PACKET_PLAYER_DEATH, f));
-	}
-
-	/*
-	 * @EventHandler(priority = EventPriority.HIGH) public void
-	 * handleCommand(PlayerCommandPreprocessEvent event){
-	 * 
-	 * if(event.getMessage().equalsIgnoreCase("/reload")){ XServer.restartMode =
-	 * PacketTypes.DC_TYPE_RELOAD; } if(event.getMessage().startsWith("/stop")){
-	 * XServer.restartMode = PacketTypes.DC_TYPE_STOP; }
-	 * 
-	 * }
-	 */
-}
+   @EventHandler(priority=EventPriority.NORMAL)
+   public void onPlayerChat(AsyncPlayerChatEvent chat)
+   {
+     Player sender = chat.getPlayer();
+     if (chat.isCancelled())
+     {
+       return;
+     }
+     if (XServer.userAttached.containsKey(chat.getPlayer()))
+     {
+       String to = (String)XServer.userAttached.get(sender);
+       String msg = "/fsay " + to + " " + chat.getMessage();
+       sender.chat(msg);
+       chat.setCancelled(true);
+     }
+     else if (XServer.overRide == 1)
+     {
+       XServer.overRide = 0;
+     }
+     else
+     {
+    	 Player p = chat.getPlayer();
+    	 String message = chat.getMessage();
+    	 if (XServer.pluginEnabled.containsKey(p))
+    	 {
+    		if ((XServer.checkPerm(p, "xserver.ac.chat")) || (p.isOp()))
+			{
+				c.sendMessage(message, p.getDisplayName());
+				chat.setCancelled(true);
+				Player[] players = Bukkit.getOnlinePlayers();
+				for (Player op : players)
+				{
+					if ((XServer.checkPerm(op, "xserver.ac.chat")) || (XServer.checkPerm(op, "xserver.ac.see")) || (op.isOp()))
+					{
+						op.sendMessage(ChatColor.AQUA+"[Local]"+p.getDisplayName()+": "+message);
+					}
+				}
+			}
+			else
+			{
+				p.sendMessage(ChatColor.RED+"You don't have permission to do that!");
+			}
+    	 }
+     }
+   }
+ }

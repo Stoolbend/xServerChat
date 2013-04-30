@@ -5,6 +5,8 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.HashMap;
 
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -23,10 +25,8 @@ public class Client extends Thread
 	private Socket skt;
 	private boolean open = false;
 	private boolean closed = false;
-	private int errLevel = 0;
 	private long sleep = 2000;
 	private Plugin p;
-
 	public Client(Plugin p, String ip, int port)
 	{
 		this.ip = ip;
@@ -52,7 +52,7 @@ public class Client extends Thread
 				// Packet(PacketTypes.PACKET_SERVER_NAME,XServer.serverName ));
 				send(new Packet(PacketTypes.PACKET_CLIENT_CONNECTED,
 						XServer.serverName));
-				sendLocalMessage(XServer.aColor + "[XServer]Connected to host");
+				sendLocalMessage(XServer.aColor + "[XServerAC]Connected to host");
 				LogManager.getInstance().info(
 						"Client connected to " + ip + ":" + port);
 
@@ -74,7 +74,6 @@ public class Client extends Thread
 					in = new ObjectInputStream(skt.getInputStream());
 					Packet p = (Packet) in.readObject();
 					parse(p);
-					errLevel = 0;
 				} catch (Exception e)
 				{
 					LogManager.getInstance().error("Could not read packet");
@@ -82,7 +81,7 @@ public class Client extends Thread
 					{
 						this.p.getServer().broadcastMessage(
 								XServer.eColor
-										+ "[XServer]Lost Connection to Host");
+										+ "[XServerAC]Lost Connection to Host");
 					}
 					open = false;
 				}
@@ -104,9 +103,15 @@ public class Client extends Thread
 		{
 			if (p.getType() == PacketTypes.PACKET_MESSAGE)
 			{
-				HashMap<String, String> form = (HashMap<String, String>) p
-						.getArgs();
-				sendLocalMessage(XServer.format(p.getFormat(), form, "MESSAGE"));
+				HashMap<String, String> form = (HashMap<String, String>) p.getArgs();
+				Player[] players = Bukkit.getOnlinePlayers();
+				for (Player op : players)
+				{
+					if ((XServer.checkPerm(op, "xserver.ac.chat")) || (XServer.checkPerm(op, "xserver.ac.see")) || (op.isOp()))
+					{
+						op.sendMessage(ChatColor.AQUA+XServer.format(p.getFormat(), form, "MESSAGE"));
+					}
+				}
 			} else if (p.getType() == PacketTypes.PACKET_STATS_REPLY)
 			{
 				XServer.msgStats((Object[][]) p.getArgs());
@@ -136,8 +141,7 @@ public class Client extends Thread
 			{
 				HashMap<String, String> form = new HashMap<String, String>();
 				form.put("SERVERNAME", (String) p.getArgs());
-				sendLocalMessage(XServer.format(p.getFormat(), form,
-						"DISCONNECT"));
+				sendLocalMessage(XServer.format(p.getFormat(), form, "DISCONNECT"));
 			}
 
 		} catch (Exception e)
